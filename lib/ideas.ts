@@ -74,7 +74,9 @@ export async function createIdea(ideaData: { title: string; content: string; cat
 export async function deleteIdea(id: number) {
     const token = localStorage.getItem("token");
 
-    const res = await fetch(`${IDEAS_KEY}${id}`, {
+    const targetUrl = IDEAS_KEY.endsWith('/') ? `${IDEAS_KEY}${id}` : `${IDEAS_KEY}/${id}`
+
+    const res = await fetch(targetUrl, {
         method: "DELETE",
         headers: {
             "Authorization": `Bearer ${token}`
