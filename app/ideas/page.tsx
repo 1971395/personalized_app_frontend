@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import useSWRInfinite from "swr/infinite"
 import Link from "next/link"
-import { Loader2, AlertCircle, Inbox, Network, LayoutGrid, PlusCircle, LogOut, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, AlertCircle, Inbox, Network, LayoutGrid, PlusCircle, LogOut, ChevronLeft, ChevronRight, Search, X } from "lucide-react"
 import { IdeaList } from "@/components/idea-list"
 import { IdeaMindmap } from "@/components/idea-mindmap"
 import { LoginForm } from "@/components/LoginForm"
@@ -18,6 +18,10 @@ export default function IdeasPage() {
     // 📄 마인드맵 뷰 전용 현재 페이지 상태 추가 (0부터 시작)
     const [mindmapPage, setMindmapPage] = useState(0)
 
+    // 🟢 [검색 상태] 실시간 입력값(keyword)과 0.3초 대기 후 적용될 최종 검색값(debouncedKeyword) 분리
+    const [keyword, setKeyword] = useState('')
+    const [debouncedKeyword, setDebouncedKeyword] = useState('')
+
     // 카드 뷰용 바닥 감지 Ref
     const observerTarget = useRef<HTMLDivElement>(null)
 
@@ -28,6 +32,17 @@ export default function IdeasPage() {
         }
     }, [])
 
+    // 🟢 디바운스 이펙트: 타이핑을 멈추고 300ms가 지나면 백엔드로 전송할 debouncedKeyword를 업데이트합니다.
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedKeyword(keyword)
+        }, 300)
+
+        return () => {
+            clearTimeout(handler)
+        }
+    }, [keyword])
+
     // 🔄 useSWRInfinite 키 생성 함수
     const getKey = (pageIndex: number, previousPageData: any) => {
         if (!user) return null
@@ -37,13 +52,16 @@ export default function IdeasPage() {
             return null
         }
 
+        // 🟢 검색어가 있을 때 요청 주소 뒤에 안전하게 파라미터 조립 (공백 제거 및 인코딩 적용)
+        const keywordParam = debouncedKeyword ? `&keyword=${encodeURIComponent(debouncedKeyword.trim())}` : ''
+
         // 💡 마인드맵 뷰일 때는 누적하지 않고 현재 선택된 단일 페이지만 긁어오도록 설정
         if (view === "mindmap") {
-            return `${IDEAS_KEY}?page=${mindmapPage}&size=10`
+            return `${IDEAS_KEY}?page=${mindmapPage}&size=10${keywordParam}`
         }
 
         // 카드 뷰일 때는 원래대로 pageIndex에 맞춰 무한 누적 요청
-        return `${IDEAS_KEY}?page=${pageIndex}&size=10`
+        return `${IDEAS_KEY}?page=${pageIndex}&size=10${keywordParam}`
     }
 
     const { data, error, size, setSize, isLoading, isValidating, mutate } = useSWRInfinite(
@@ -58,7 +76,7 @@ export default function IdeasPage() {
         }
     )
 
-    // 💡 뷰 모드가 바뀔 때 데이터 요청 상태를 안전하게 초기화
+    // 💡 뷰 모드 또는 검색어가 바뀔 때 데이터 요청 상태를 안전하게 초기화
     useEffect(() => {
         if (view === "mindmap") {
             setSize(1) // 마인드맵은 단일 페이지 배열만 유지
@@ -66,7 +84,7 @@ export default function IdeasPage() {
             setMindmapPage(0) // 카드 뷰로 가면 마인드맵 페이지 리셋
             setSize(1)
         }
-    }, [view, setSize])
+    }, [view, debouncedKeyword, setSize]) // 🟢 debouncedKeyword 조건도 감시 대상에 추가하여 검색 시 페이징 리셋
 
     const handleLogout = () => {
         localStorage.removeItem("token")
@@ -75,8 +93,6 @@ export default function IdeasPage() {
     }
 
     // 💡 데이터 가공 분기 처리
-    // 마인드맵 뷰: 무한 스크롤 배열이 꼬이지 않도록 항상 최신 응답의 content만 깔끔하게 주입
-    // 카드 뷰: 기존 방식대로 flatMap을 이용해 데이터를 아래로 계속 누적
     const ideas = data
         ? (view === "mindmap"
             ? (data[0]?.content || [])
@@ -187,6 +203,42 @@ export default function IdeasPage() {
                     </div>
                 </div>
 
+                {/* 🟢 1. 검색바 UI 영역 (입력창 + 초기화 버튼 추가) */}
+                <div className="mb-6 flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="제목이나 내용으로 검색..."
+                            value={keyword}
+                            onChange={(e) => setKeyword(e.target.value)}
+                            className="w-full rounded-lg border border-input bg-background pl-9 pr-20 py-2 text-sm text-foreground placeholder-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                        {/* ⏳ 타이핑 중 백엔드 요청 대기 시간을 알려주는 인디케이터 */}
+                        {keyword !== debouncedKeyword && (
+                            <span className="absolute right-3 top-2.5 text-[10px] text-muted-foreground/75 animate-pulse select-none">
+                            입력 중...
+                          </span>
+                        )}
+                    </div>
+                    {keyword && (
+                        <button
+                            type="button"
+                            onClick={() => setKeyword('')}
+                            className="flex items-center gap-1 rounded-lg border border-input bg-background px-3 py-2 text-xs font-medium text-muted-foreground shadow-sm hover:bg-accent transition-colors"
+                        >
+                            <X className="size-3" /> 초기화
+                        </button>
+                    )}
+                </div>
+
+                {/* 🟢 2. 검색 결과 정보 표시 (검색어가 있을 때만 노출) */}
+                {debouncedKeyword && !error && !isLoading && (
+                    <p className="mb-4 text-xs text-muted-foreground">
+                        &apos;<span className="text-foreground font-semibold">{debouncedKeyword}</span>&apos; 검색 결과 : 총 <span className="text-foreground font-semibold">{ideas.length}</span>건의 아이디어가 발견되었습니다.
+                    </p>
+                )}
+
                 {/* 로딩 상태 */}
                 {isLoading && ideas.length === 0 && (
                     <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-card py-16 text-sm text-muted-foreground">
@@ -208,14 +260,18 @@ export default function IdeasPage() {
                 {!isLoading && !error && !hasIdeas && (
                     <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card py-16 text-center">
                         <Inbox className="size-6 text-muted-foreground" />
-                        <p className="text-sm font-medium text-foreground">아직 등록된 아이디어가 없습니다.</p>
-                        <Link
-                            href="/"
-                            className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-                        >
-                            <PlusCircle className="size-4" aria-hidden="true" />
-                            아이디어 등록하러 가기
-                        </Link>
+                        <p className="text-sm font-medium text-foreground">
+                            {debouncedKeyword ? "검색 조건과 일치하는 아이디어가 없습니다." : "아직 등록된 아이디어가 없습니다."}
+                        </p>
+                        {!debouncedKeyword && (
+                            <Link
+                                href="/"
+                                className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                            >
+                                <PlusCircle className="size-4" aria-hidden="true" />
+                                아이디어 등록하러 가기
+                            </Link>
+                        )}
                     </div>
                 )}
 
