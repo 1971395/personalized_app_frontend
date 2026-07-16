@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Lock, User, Loader2 } from "lucide-react"
 import { AUTH_KEY } from "@/lib/ideas"
+import Link from "next/link"
 
 export function LoginForm({ onLoginSuccess }: { onLoginSuccess: (username: string) => void }) {
     const [username, setUsername] = useState("")
@@ -86,6 +87,13 @@ export function LoginForm({ onLoginSuccess }: { onLoginSuccess: (username: strin
                 >
                     {isLoading ? <Loader2 className="size-4 animate-spin" /> : "로그인"}
                 </button>
+
+                <div className="mt-4 text-center text-xs text-muted-foreground">
+                    아직 회원이 아니신가요?{" "}
+                    <Link href="/signup" className="font-semibold text-primary hover:underline">
+                        회원가입하러 가기
+                    </Link>
+                </div>
             </form>
         </div>
     )
