@@ -7,6 +7,7 @@ import { Loader2, AlertCircle, Inbox, Network, LayoutGrid, PlusCircle, LogOut, C
 import { IdeaList } from "@/components/idea-list"
 import { IdeaMindmap } from "@/components/idea-mindmap"
 import { LoginForm } from "@/components/LoginForm"
+import { IdeaForm } from "@/components/IdeaForm" // 🟢 추가: 파일 업로드 폼 바인딩
 import { IDEAS_KEY } from "@/lib/ideas"
 
 type View = "mindmap" | "cards"
@@ -166,6 +167,13 @@ export default function IdeasPage() {
                     </button>
                 </div>
 
+                {/* 🟢 [추가 및 튜닝 지점]
+                    아이디어 생성 시 파일 업로드 세션까지 연쇄 처리된 후, SWR 목록을 즉시 갱신(mutate)하도록 IdeaForm에 이벤트를 바인딩합니다.
+                    (만약 이 폼이 모달 등 다른 탭에 배치되어 있다면, 해당 위치에 onCreated={mutate}를 꼭 전달해 주세요.) */}
+                <div className="mb-10">
+                    <IdeaForm onCreated={() => mutate()} />
+                </div>
+
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-xl font-semibold tracking-tight text-foreground">아이디어 목록</h1>
@@ -203,7 +211,7 @@ export default function IdeasPage() {
                     </div>
                 </div>
 
-                {/* 🟢 1. 검색바 UI 영역 (입력창 + 초기화 버튼 추가) */}
+                {/* 🟢 검색바 UI 영역 */}
                 <div className="mb-6 flex gap-2">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
@@ -232,7 +240,7 @@ export default function IdeasPage() {
                     )}
                 </div>
 
-                {/* 🟢 2. 검색 결과 정보 표시 (검색어가 있을 때만 노출) */}
+                {/* 🟢 검색 결과 정보 표시 (검색어가 있을 때만 노출) */}
                 {debouncedKeyword && !error && !isLoading && (
                     <p className="mb-4 text-xs text-muted-foreground">
                         &apos;<span className="text-foreground font-semibold">{debouncedKeyword}</span>&apos; 검색 결과 : 총 <span className="text-foreground font-semibold">{ideas.length}</span>건의 아이디어가 발견되었습니다.
