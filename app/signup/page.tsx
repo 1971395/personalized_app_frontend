@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2, UserPlus, AlertCircle } from "lucide-react"
+import { AUTH_KEY } from "@/lib/ideas";
 
 export default function SignupPage() {
     const router = useRouter()
@@ -20,7 +21,7 @@ export default function SignupPage() {
 
         try {
             // 스프링 부트 회원가입 API 연동
-            const res = await fetch("http://43.202.15.255:8080/api/auth/signup", {
+            const res = await fetch(`${AUTH_KEY}/signup`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
