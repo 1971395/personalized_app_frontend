@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, AlertCircle, Inbox, Tag, Trash2 } from "lucide-react"
-import { type Idea, parseTags, deleteIdea, updateIdea } from "@/lib/ideas"
+import { Loader2, AlertCircle, Inbox, Tag, Trash2, Download, FileIcon } from "lucide-react"
+import { type Idea, parseTags, deleteIdea, updateIdea, downloadIdeaFile } from "@/lib/ideas"
 
 // 카테고리별 배지 색상
 const CATEGORY_STYLES: Record<string, string> = {
@@ -127,9 +127,21 @@ function IdeaCardNode({ idea, tagList, isCurrentDeleting, handleDelete, mutate }
     const [editTitle, setEditTitle] = useState(idea.title)
     const [editContent, setEditContent] = useState(idea.content)
     const [isSaving, setIsSaving] = useState(false)
+    const [downloadingFileId, setDownloadingFileId] = useState<number | null>(null)
 
     const handleDoubleClick = () => {
         setIsEditing(true)
+    }
+
+    const handleDownload = async (fileId: number, originalFileName: string) => {
+        setDownloadingFileId(fileId)
+        try {
+            await downloadIdeaFile(idea.id, fileId, originalFileName)
+        } catch (err: any) {
+            alert(err.message || "다운로드에 실패했습니다.")
+        } finally {
+            setDownloadingFileId(null)
+        }
     }
 
     const handleSave = async () => {
@@ -151,6 +163,8 @@ function IdeaCardNode({ idea, tagList, isCurrentDeleting, handleDelete, mutate }
             setIsSaving(false)
         }
     }
+
+
 
     return (
         <article
@@ -232,6 +246,43 @@ function IdeaCardNode({ idea, tagList, isCurrentDeleting, handleDelete, mutate }
                     <p className="line-clamp-4 text-sm leading-relaxed text-muted-foreground pr-6">
                         {idea.content}
                     </p>
+
+                    {idea.files && idea.files.length > 0 && (
+                        <div className="mt-2 flex flex-col gap-1.5 border-t border-border/50 pt-2.5 pr-6">
+                            {idea.files.map((file: any) => {
+                                const isDownloading = downloadingFileId === file.id
+                                return (
+                                    <div
+                                        key={file.id}
+                                        className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-1.5 text-xs transition-colors hover:bg-muted/60"
+                                    >
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <FileIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                                            <span className="truncate text-muted-foreground font-medium" title={file.originalFileName}>
+                                                {file.originalFileName}
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation() // 부모 더블클릭 이벤트 전파 차단
+                                                handleDownload(file.id, file.originalFileName)
+                                            }}
+                                            disabled={isDownloading}
+                                            className="flex items-center gap-1 shrink-0 rounded p-1 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                                            aria-label="파일 다운로드"
+                                        >
+                                            {isDownloading ? (
+                                                <Loader2 className="size-3 animate-spin" />
+                                            ) : (
+                                                <Download className="size-3" />
+                                            )}
+                                        </button>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
 
                     {tagList.length > 0 && (
                         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">

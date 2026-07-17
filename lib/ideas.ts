@@ -112,3 +112,67 @@ export async function updateIdea(id: number, title: string, content: string) {
     return res.json();
 }
 
+
+export interface IdeaFile {
+    id: number
+    originalFileName: string
+    fileUrl: string
+}
+
+// 🟢 파일 업로드 API 호출 함수
+export async function uploadIdeaFile(ideaId: number, file: File): Promise<IdeaFile> {
+    const token = localStorage.getItem("token")
+
+    // Multipart 전송을 위한 FormData 객체 생성
+    const formData = new FormData()
+    formData.append("file", file) // 컨트롤러 @RequestParam("file") 매핑 이름 일치
+
+    const res = await fetch(`${IDEAS_KEY}/${ideaId}/files`, {
+        method: "POST",
+        headers: {
+            // 🚨 중요: "Content-Type" 헤더를 명시하지 않아야 브라우저가 boundary 값을 정상적으로 밀어 넣습니다.
+            "Authorization": `Bearer ${token}`
+        },
+        body: formData,
+    })
+
+    if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(errorText || "파일 업로드에 실패했습니다.")
+    }
+
+    return res.json()
+}
+
+// 🟢 파일 다운로드 API 호출 함수 (Blob 처리)
+export async function downloadIdeaFile(ideaId: number, fileId: number, originalFileName: string) {
+    const token = localStorage.getItem("token")
+
+    const res = await fetch(`${IDEAS_KEY}/${ideaId}/files/${fileId}`, {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}`
+        }
+    })
+
+    if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(errorText || "파일 다운로드에 실패했습니다.")
+    }
+
+    // 1. 응답 스트림을 메모리 상의 이진 데이터 객체(Blob)로 파싱합니다.
+    const blob = await res.blob()
+
+    // 2. 가상의 다운로드 트리거용 <a> 태그를 만들어 브라우저 액션을 실행합니다.
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = originalFileName // 다운로드 시 저장될 파일명 지정
+    document.body.appendChild(link)
+    link.click()
+
+    // 3. 메모리 누수 방지를 위한 브라우저 리소스 해제 및 가상 엘리먼트 제거
+    link.remove()
+    window.URL.revokeObjectURL(url)
+}
+

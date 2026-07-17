@@ -1,8 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ChevronDown, ChevronRight, Lightbulb, Tag, Trash2, Loader2 } from "lucide-react"
-import { type Idea, parseTags, deleteIdea, updateIdea } from "@/lib/ideas"
+import {ChevronDown, ChevronRight, Lightbulb, Tag, Trash2, Loader2, Download} from "lucide-react"
+import { type Idea, parseTags, deleteIdea, updateIdea, downloadIdeaFile } from "@/lib/ideas"
 
 // 카테고리별 강조 색 (점/연결선)
 const CATEGORY_COLORS: Record<string, string> = {
@@ -162,6 +162,18 @@ function MindmapNode({ idea, tags, isCurrentDeleting, handleDelete, mutate }: an
     const [editTitle, setEditTitle] = useState(idea.title)
     const [editContent, setEditContent] = useState(idea.content)
     const [isSaving, setIsSaving] = useState(false)
+    const [downloadingFileId, setDownloadingFileId] = useState<number | null>(null)
+
+    const handleDownload = async (fileId: number, originalFileName: string) => {
+        setDownloadingFileId(fileId)
+        try {
+            await downloadIdeaFile(idea.id, fileId, originalFileName)
+        } catch (err: any) {
+            alert(err.message || "다운로드에 실패했습니다.")
+        } finally {
+            setDownloadingFileId(null)
+        }
+    }
 
     // 카드 더블클릭 핸들러
     const handleDoubleClick = () => {
@@ -264,6 +276,33 @@ function MindmapNode({ idea, tags, isCurrentDeleting, handleDelete, mutate }: an
                         <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-muted-foreground pr-5">
                             {idea.content}
                         </p>
+
+                        {idea.files && idea.files.length > 0 && (
+                            <div className="mt-2.5 flex flex-col gap-1 border-t border-border/40 pt-2">
+                                {idea.files.map((file: any) => {
+                                    const isDownloading = downloadingFileId === file.id
+                                    return (
+                                        <button
+                                            key={file.id}
+                                            type="button"
+                                            onClick={() => handleDownload(file.id, file.originalFileName)}
+                                            disabled={isDownloading}
+                                            className="flex w-full items-center justify-between rounded bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground transition-all hover:bg-muted/70"
+                                        >
+                                            <span className="truncate pr-1 font-medium text-left max-w-[150px]">
+                                                {file.originalFileName}
+                                            </span>
+                                            {isDownloading ? (
+                                                <Loader2 className="size-3 animate-spin shrink-0 text-primary" />
+                                            ) : (
+                                                <Download className="size-3 shrink-0 text-primary" />
+                                            )}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        )}
+
                         {tags.length > 0 && (
                             <div className="mt-3 flex flex-wrap items-center gap-1.5">
                                 <Tag className="size-3 text-muted-foreground" aria-hidden="true" />
